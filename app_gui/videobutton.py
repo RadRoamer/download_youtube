@@ -1,4 +1,4 @@
-from customtkinter import CTkButton
+from customtkinter import CTkButton, CTk
 
 
 class VideoButton(CTkButton):
@@ -13,24 +13,23 @@ class VideoButton(CTkButton):
 
         self.pressed = False
         self.yt_id = yt_id
+        self.res = []
+        self.Youtube = None
 
     def configure(self, **kwargs):
         super().configure(**kwargs)
 
     def change_state(self, is_pressed: bool):
         if is_pressed:
+            self.pressed = True
             self.configure(fg_color=('#ebe134', '#028f8e'),
                            hover_color=('#8d871f', '#015555'))
         else:
+            self.pressed = False
             self.configure(fg_color=('#3a7ebf', '#1f538d'),
                            hover_color=('#325882', '#14375e'))
 
 
 if __name__ == '__main__':
-    import customtkinter as ctk
-
-    window = ctk.CTk()
-
-    # Создаем фрейм для размещения виджетов
-
+    window = CTk()
     window.mainloop()
