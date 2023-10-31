@@ -4,8 +4,9 @@ from api.download import download_video, download_playlist
 from api.search import yt_search, check_channel
 from app_gui.videobutton import VideoButton
 from app_gui.image_from_url import load_image
-from app_gui.frame import Frame, InfoFrame, ControlFrame
+from app_gui.frame import Frame, InfoFrame, VideoControlFrame
 from tkinter.filedialog import askdirectory
+from parallel import execute_process
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -26,8 +27,9 @@ class App(ctk.CTk):
         self.search_frame = Frame(self, row=0, column=0, fg_color='transparent',
                                   columnspan=2, width=600)
 
-        self.control_frame = ControlFrame(self, row=1, column=0, width=250)
-        self.info_frame = InfoFrame(self, row=1, column=1, width=500)
+        self.control_frame = Frame(self, row=1, column=0, fg_color='transparent',
+                                   minsize=100)
+        self.info_frame = InfoFrame(self, row=1, column=1)
 
         self.entry = CTkEntry(self.search_frame, placeholder_text='python',
                               width=500)
@@ -68,8 +70,6 @@ class App(ctk.CTk):
 
         # binding
         self.entry.bind("<KeyRelease>", self.is_entry_empty)
-        self.control_frame.download_button.bind('<Button-1>',
-                                                self.download_content)
 
     def search_results(self):
         """
@@ -78,7 +78,13 @@ class App(ctk.CTk):
         # clear the id_var
         self.id_var.set(value='')
 
-        self.control_frame.res_button.configure(state='disabled')
+        yt_type = self.type_var.get()  # type (video, playlist, channel)
+        if yt_type == 0:  # video
+            self.control_frame = VideoControlFrame(master=self, row=1,
+                                                   column=0, width=250)
+            self.control_frame.textbox = self.info_frame.textbox
+
+        self.control_frame.search()
 
         # clear the scrollable frame
         for widget in self.scroll_frame.winfo_children():
@@ -116,46 +122,17 @@ class App(ctk.CTk):
         """
         highlights the user-selected button
         :param widget: selected button
-        :return: None
         """
         if not widget.pressed:  # check if button has not been pressed
-            self.control_frame.res_button.configure(state='normal')
-            self.control_frame.combobox.configure(state='normal')
-
-            self.control_frame.selected = widget
 
             for w in self.scroll_frame.winfo_children():
-                if isinstance(w, VideoButton) and widget == w:
-                    if w.res:
-                        self.control_frame.combo_on(widget)
+                if isinstance(w, VideoButton):  # if widget is VideoButton
+                    if widget == w:
+                        self.control_frame.selected(widget=widget)
+                        w.change_state(True)
+                        self.id_var.set(value=w.yt_id)
                     else:
-                        self.control_frame.combo_off(widget)
-                    w.change_state(True)
-                    self.id_var.set(value=w.yt_id)
-                else:
-                    w.change_state(False)
-
-    def download_content(self, *args):
-        """
-        download selected YouTube object to desired filepath
-        """
-        path = askdirectory()  # ask the user to specify the path
-
-        yt_type = self.type_var.get()  # type (video, playlist, channel)
-
-        textbox = self.info_frame.textbox
-        textbox.configure(state='normal')
-
-        if yt_type == 0:  # downloading video
-            quality = self.control_frame.combobox_var.get()
-            download_video(path, self.control_frame.selected.Youtube,
-                           quality, textbox)
-        elif yt_type == 1:  # downloading playlist
-            download_playlist(self.id_var.get(), path)
-        elif yt_type == 2:  # downloading channel
-            check_channel(self.id_var.get())
-
-        textbox.configure(state='disabled')
+                        w.change_state(False)
 
 
 if __name__ == "__main__":

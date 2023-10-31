@@ -1,29 +1,36 @@
 import customtkinter as ctk
 from api.download import video_res
 from app_gui.videobutton import VideoButton
+from tkinter.filedialog import askdirectory
+from api.download import download_video
 
 
 class Frame(ctk.CTkFrame):
-    def __init__(self, master, column, row,
+    def __init__(self, master, column, row, pad=0, minsize=0,
                  columnspan=1, rowspan=1, weight=1, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.grid_columnconfigure(0, weight=weight)
+        self.grid_columnconfigure(0, weight=weight, pad=pad, minsize=minsize)
+        self.grid_rowconfigure(0, minsize=minsize)
         self.grid(column=column, row=row, rowspan=rowspan,
                   columnspan=columnspan, padx=10, pady=(0, 20))
 
     def selected(self, *args, **kwargs):
-        raise AttributeError(f'its a abstract method for {self.__name__} ')
+        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
 
     def search(self, *args, **kwargs):
-        raise AttributeError(f'its a abstract method for {self.__name__} ')
+        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
+
+    def download(self, *args, **kwargs):
+        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
 
 
 class InfoFrame(Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.grid(sticky='e')
         self.grid_rowconfigure(0, weight=1)  # configure grid system
-        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1, minsize=300)
 
         self.textbox = ctk.CTkTextbox(master=self, width=500, height=125)
         self.textbox.grid(row=0, column=0)
@@ -43,21 +50,23 @@ class VideoControlFrame(Frame):
         self.grid_columnconfigure(0, weight=1)
 
         self.dedicated_butt: VideoButton = None
+        self.textbox: ctk.CTkTextbox = None
 
         # variables
         self.quality_var = ctk.IntVar(value=0)
         self.id_var = ctk.StringVar(value='')
         self.combobox_var = ctk.StringVar(value="")
 
+        # ------------------------> Control Buttons section
         self.res_button = ctk.CTkButton(self, state='disabled',
                                         command=self.get_resolutions,
                                         text='available resolutions')
         self.res_button.grid(row=0, column=0, padx=(0, 30), pady=10)
 
-        self.download_button = ctk.CTkButton(self,
-                                             text='download',
-                                             state='disabled')
+        self.download_button = ctk.CTkButton(self, command=self.download,
+                                             text='download', state='disabled')
         self.download_button.grid(row=1, column=0, pady=10, padx=(0, 30))
+        # ------------------------>
 
         self.combobox = ctk.CTkComboBox(self, variable=self.combobox_var,
                                         state='disabled')
@@ -96,6 +105,16 @@ class VideoControlFrame(Frame):
         self.combobox.configure(values=[], state='disabled')
 
         self.download_button.configure(state='disabled')
+
+    def download(self, *args, **kwargs):
+        path = askdirectory()  # ask the user to specify the path
+
+        self.textbox.configure(state='normal')
+        download_video(path=path,
+                       yt_obj=self.dedicated_butt.Youtube,
+                       textbox=self.textbox,
+                       quality=self.combobox_var.get())
+        self.textbox.configure(state='disabled')
 
 
 if __name__ == '__main__':

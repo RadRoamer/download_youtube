@@ -20,9 +20,10 @@ def download_video(path: str, yt_obj: YouTube = None, quality='144p',
     :return: returns the path where the file is stored as a sign that the function completed successfully
     """
     if not yt_id and not yt_obj:
-        raise ValueError('At least one of the parameters must be filled in')
+        raise ValueError(
+            'At least one of the parameters (yt_id or yt_obj) must be filled in')
 
-    if not yt_obj and not isinstance(yt_obj, YouTube):
+    if not isinstance(yt_obj, YouTube):
         # create a full  url link (which starts with 'https://')
         link = get_yt_link(yt_id, 'video')
         yt_obj = YouTube(link)
