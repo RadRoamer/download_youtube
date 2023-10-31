@@ -16,13 +16,13 @@ class Frame(ctk.CTkFrame):
                   columnspan=columnspan, padx=10, pady=(0, 20))
 
     def selected(self, *args, **kwargs):
-        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
+        raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
     def search(self, *args, **kwargs):
-        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
+        raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
     def download(self, *args, **kwargs):
-        raise AttributeError(f'its a abstract method for {type(self).__name__} ')
+        raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
 
 class InfoFrame(Frame):
@@ -117,5 +117,39 @@ class VideoControlFrame(Frame):
         self.textbox.configure(state='disabled')
 
 
+class PlaylistFrame(Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.grid_rowconfigure(0, weight=1)  # configure grid system
+        self.grid_columnconfigure(0, weight=1)
+
+        self.dedicated_butt: VideoButton = None
+        self.textbox: ctk.CTkTextbox = None
+        self.toplevel: ctk.CTkToplevel = None
+
+        self.download_button = ctk.CTkButton(self, command=self.download,
+                                             text='download', state='normal')
+        self.download_button.grid(row=1, column=0, pady=10, padx=(0, 30))
+
+    def download(self, *args, **kwargs):
+        self.open_toplevel()
+
+    def selected(self, *args, **kwargs):
+        self.dedicated_butt = kwargs['widget']
+        self.download_button.configure(state='normal')
+
+    def search(self, *args, **kwargs):
+        pass
+
+    def open_toplevel(self):
+        if self.toplevel is None or not self.toplevel.winfo_exists():
+            self.toplevel = ctk.CTkToplevel()  # create window if its None or destroyed
+        else:
+            self.toplevel.focus()  # if window exists focus it
+
+
 if __name__ == '__main__':
-    pass
+    app = ctk.CTk()
+    frame = PlaylistFrame(app, row=0, column=0)
+    app.mainloop()

@@ -1,12 +1,9 @@
 import customtkinter as ctk
 from customtkinter import CTkScrollableFrame, CTkEntry, CTkButton
-from api.download import download_video, download_playlist
-from api.search import yt_search, check_channel
+from api.search import yt_search
 from app_gui.videobutton import VideoButton
 from app_gui.image_from_url import load_image
-from app_gui.frame import Frame, InfoFrame, VideoControlFrame
-from tkinter.filedialog import askdirectory
-from parallel import execute_process
+from app_gui.frame import Frame, InfoFrame, VideoControlFrame, PlaylistFrame
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -82,7 +79,10 @@ class App(ctk.CTk):
         if yt_type == 0:  # video
             self.control_frame = VideoControlFrame(master=self, row=1,
                                                    column=0, width=250)
-            self.control_frame.textbox = self.info_frame.textbox
+        elif yt_type == 1:  # playlist
+            self.control_frame = PlaylistFrame(master=self, row=1,
+                                               column=0, width=250)
+        self.control_frame.textbox = self.info_frame.textbox
 
         self.control_frame.search()
 

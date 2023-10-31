@@ -4,7 +4,6 @@ from api.utils import get_yt_link
 from api.json_utils import find_key, find_all_keys
 from customtkinter import CTkTextbox
 from app_gui.videobutton import VideoButton
-from pytube import YouTube
 
 
 def download_video(path: str, yt_obj: YouTube = None, quality='144p',
