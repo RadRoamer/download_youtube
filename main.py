@@ -3,7 +3,7 @@ from customtkinter import CTkScrollableFrame, CTkEntry, CTkButton
 from api.search import yt_search
 from app_gui.videobutton import VideoButton
 from app_gui.image_from_url import load_image
-from app_gui.frame import Frame, InfoFrame, VideoControlFrame, PlaylistFrame
+from app_gui.frame import Frame, InfoFrame, VideoControlFrame, PlaylistWindow
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -74,16 +74,19 @@ class App(ctk.CTk):
         """
         # clear the id_var
         self.id_var.set(value='')
+        self.control_frame.destroy()
 
         yt_type = self.type_var.get()  # type (video, playlist, channel)
         if yt_type == 0:  # video
             self.control_frame = VideoControlFrame(master=self, row=1,
                                                    column=0, width=250)
         elif yt_type == 1:  # playlist
-            self.control_frame = PlaylistFrame(master=self, row=1,
-                                               column=0, width=250)
+            self.control_frame = PlaylistWindow(master=self, row=1,
+                                                fg_color='transparent',
+                                                column=0, width=250)
         self.control_frame.textbox = self.info_frame.textbox
 
+        # function  that is responsible for the frame's actions during search
         self.control_frame.search()
 
         # clear the scrollable frame
@@ -102,7 +105,7 @@ class App(ctk.CTk):
             button = VideoButton(master=self.scroll_frame, text=title,
                                  yt_id=v.yt_id, image=image, anchor='w')
             button.bind('<Button-1>',
-                        lambda event, b=button: self.button_selected(b))
+                        lambda event, b=button: self.select_button(b))
             button.pack(padx=10, pady=10)
 
     def is_entry_empty(self, *args):
@@ -118,7 +121,7 @@ class App(ctk.CTk):
         else:
             self.search_button.configure(state="normal")
 
-    def button_selected(self, widget: VideoButton):
+    def select_button(self, widget: VideoButton):
         """
         highlights the user-selected button
         :param widget: selected button
