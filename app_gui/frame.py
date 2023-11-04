@@ -121,7 +121,7 @@ class VideoControlFrame(Frame):
 
         self.textbox.configure(state='normal')
         download_video(path=path,
-                       yt_obj=self.dedicated_butt.Youtube,
+                       yt_id=self.dedicated_butt.yt_id,
                        textbox=self.textbox,
                        quality=self.combobox_var.get())
         self.textbox.configure(state='disabled')
