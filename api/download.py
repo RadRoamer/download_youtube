@@ -1,106 +1,64 @@
-from pytube import Playlist, YouTube
-from api.setup import DEFAULT_DOWN_PATH, youtube
+from pytube import YouTube
 from api.utils import get_yt_link
-from api.json_utils import find_key, find_all_keys
-from customtkinter import CTkTextbox
-from app_gui.videobutton import VideoButton
-from typing import List
-import yt_dlp as ytd
 
 
-def download_video(path: str, yt_obj: YouTube = None, quality='144p',
-                   textbox: CTkTextbox = None, yt_id: str = '') -> str:
+def download_video(inst, path: str, yt_id):
     """
     download the requested video by URL with the
     required file path and the required video quality
-    :param yt_id: id of the video
+    :param inst: instance of a class (PlaylistWindow, VideoFrame, etc.)
+    :param yt_id: id of video
     :param path: path in the root file system where the video will be stored
-    :param yt_obj: instance of VideoButton class
-    :param quality: quality of the video (144p, 360p, 720p, etc.)
-    :param textbox: instance of textbox to display current information
-    :return: returns the path where the file is stored as a sign that the function completed successfully
     """
-    if not yt_id and not yt_obj:
-        raise ValueError(
-            'At least one of the parameters (yt_id or yt_obj) must be filled in')
 
-    if not isinstance(yt_obj, YouTube):
-        # create a full  url link (which starts with 'https://')
-        link = get_yt_link(yt_id, 'video')
-        yt_obj = YouTube(link)
+    # create a full  url link (which starts with 'https://')
+    link = get_yt_link(yt_id)
+    yt_obj = YouTube(link)
 
+    inst.textbox.insert('end', f'Downloading: {yt_obj.title} ...\n')
+    quality = inst.combobox_var.get()  # get quality label from combobox
     # find stream with required quality
     stream = yt_obj.streams.filter(res=quality).first()
-    # textbox.insert('end', f'Downloading: {yt_obj.title} ...\n')
-    print(f'Downloading: {yt_obj.title} ...')
 
     stream.download(output_path=path)  # download stream
-    # textbox.insert('end', 'video downloaded successfully!!\n')
-    print('video downloaded successfully!!')
-
-    return path
+    inst.textbox.insert('end', 'video downloaded successfully!!\n')
 
 
-def download_playlist(yt_ids: List[str], path: str = DEFAULT_DOWN_PATH, quality='144p'):
+def download_playlist(inst, path: str):
     """
     The same as video download function, but for full playlist
-    :param yt_ids: lid of the playlist
+    :param inst: instance of a class PlaylistWindow
     :param path: path in the root file system where the video will be stored
-    :param quality: quality of each video (144p, 360p, 720p, etc.)
-    :return: returns the path where the videos are stored as a sign that the function completed successfully
     """
 
-    length = len(yt_ids)
+    length = len(inst.ids)
     # download all videos one by one
-    for idx, yt_id in enumerate(yt_ids, start=1):
-        # create a full  url link (which starts with 'https://')
-        download_video(yt_id=yt_id, path=path, quality=quality)
-        print(f'downloaded {idx}/{length} videos...')
+    inst.textbox.configure(state='normal')
+    for idx, yt_id in enumerate(inst.ids, start=1):
+        download_video(inst, path, yt_id)
+        inst.textbox.insert(
+            'end', f'downloaded {idx}/{length} videos...\n')
 
-    print(f'playlist was successful downloaded!')
-    return path
+    inst.textbox.insert(
+            'end', f'playlist was successful downloaded!\n')
 
-
-def download_channel(yt_id, path: str = DEFAULT_DOWN_PATH, quality='144p'):
-    next_page_token = None
-
-    # find info about channel
-    channel_response = youtube.channels().list(
-        part='contentDetails',
-        id=yt_id
-    ).execute()
-
-    uploads_playlist_id = find_key('uploads', channel_response)
-    # looping until  all the videos are downloaded.
-    while True:
-        pl_response = youtube.playlistItems().list(
-            part="contentDetails",
-            playlistId=uploads_playlist_id,
-            maxResults=50,
-            pageToken=next_page_token
-        ).execute()
-
-        video_ids = find_all_keys('videoId', pl_response)
-        for v in video_ids:
-            download_video(yt_id=v, path=path, quality=quality)
-
-        next_page_token = pl_response.get('nextPageToken')
-        if not next_page_token:  # if token is None, end the loop
-            break
+    inst.textbox.configure(state='disabled')
 
 
-def video_res(vid_id: str, butt: VideoButton = None):
+def video_res(inst):
     """get all available resolution for specific video"""
-    video = YouTube(get_yt_link(vid_id, 'video'))
-    if butt:
-        butt.Youtube = video
+    video = YouTube(get_yt_link(inst.dedicated_butt.yt_id))
 
     # got unique values
     res = {x.resolution for x in video.streams if x.resolution}
     # sort values in descending order by digits
-    return sorted(res, key=lambda x: int(x[:-1]), reverse=True)
+    res = sorted(res, key=lambda x: int(x[:-1]), reverse=True)
+
+    inst.combobox.configure(values=res, state='normal')
+    inst.combobox_var.set(res[0])
+
+    inst.download_button.configure(state='normal')
 
 
 if __name__ == '__main__':
-    video_id = get_yt_link('MunPNYumw6M')
-    print(video_res(video_id))
+    pass

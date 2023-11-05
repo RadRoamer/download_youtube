@@ -1,9 +1,8 @@
 import customtkinter as ctk
 from customtkinter import CTkScrollableFrame, CTkEntry, CTkButton
-from api.search import yt_search
+from api.search import yt_search, parallel_task
 from app_gui.videobutton import VideoButton
-from app_gui.image_from_url import load_image
-from app_gui.frame import Frame, InfoFrame, VideoControlFrame, PlaylistWindow
+from app_gui.frame import Frame, InfoFrame, VideoFrame, PlaylistWindow
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -78,10 +77,11 @@ class App(ctk.CTk):
 
         yt_type = self.type_var.get()  # type (video, playlist, channel)
         if yt_type == 0:  # video
-            self.control_frame = VideoControlFrame(master=self, row=1,
-                                                   column=0, width=250)
+            self.control_frame = VideoFrame(master=self, row=1,
+                                            column=0, width=250)
         elif yt_type == 1:  # playlist
             self.control_frame = PlaylistWindow(master=self, row=1,
+                                                textbox=self.info_frame.textbox,
                                                 fg_color='transparent',
                                                 column=0, width=250)
         self.control_frame.textbox = self.info_frame.textbox
@@ -93,20 +93,8 @@ class App(ctk.CTk):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
-        # get video thumbnail, title and video id
-        videos = yt_search(self.entry.get(), self.type_var.get())
-
-        for v in videos:
-            # trim string if it's too long
-            title = v.title if len(v.title) < 45 else v.title[:42] + '...'
-
-            image = load_image(v.thumbnail)  # load video thumbnail
-
-            button = VideoButton(master=self.scroll_frame, text=title,
-                                 yt_id=v.yt_id, image=image, anchor='w')
-            button.bind('<Button-1>',
-                        lambda event, b=button: self.select_button(b))
-            button.pack(padx=10, pady=10)
+        # display found results on ScrollFrame
+        parallel_task(self, yt_search)
 
     def is_entry_empty(self, *args):
         """

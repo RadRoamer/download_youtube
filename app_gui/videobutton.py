@@ -13,7 +13,7 @@ class VideoButton(CTkButton):
 
         self.pressed = False
         self.yt_id = yt_id
-        self.res = []
+        self.res = None
         self.Youtube = None
 
     def configure(self, **kwargs):

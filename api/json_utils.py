@@ -1,7 +1,5 @@
 import json
 from typing import List
-from api.setup import youtube
-from api.utils import strip_line
 
 
 def json_write(json_obj, name: str):
@@ -55,16 +53,4 @@ def find_key(required_key: str, seq):
 
 
 if __name__ == '__main__':
-    channel_name = 'python'
-    search_request = youtube.search().list(
-        q=channel_name,
-        type='channel',
-        part='snippet'
-    )
-    search_response = search_request.execute()
-    key = 'thumbnails'
-    info = find_all_keys(key, search_response)
-    thumb_key = 'url'
-    small_urls = find_all_keys('url', info)
-    print(f'{key}: {small_urls}'.center(100), '+' * 70, sep='\n')
-    print(strip_line(search_response, line_length=150))
+    pass
