@@ -42,19 +42,21 @@ class InfoFrame(Frame):
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1, minsize=300)
 
+        self.progress_var = ctk.IntVar(value=0)
+
         self.textbox = ctk.CTkTextbox(master=self, width=500, height=125)
         self.textbox.grid(row=0, column=0)
         self.textbox.configure(state='disabled')
 
-        self.progressbar = ctk.CTkProgressBar(self, orientation="horizontal")
+        self.progressbar = ctk.CTkProgressBar(self,
+                                              variable=self.progress_var,
+                                              orientation="horizontal")
         self.progressbar.grid(row=1, pady=(10, 10))
-
-    def clear_textbox(self):
-        self.textbox.delete('1.0', 'end')
 
 
 class VideoFrame(Frame):
     def __init__(self, *args, **kwargs):
+        self.info = kwargs.pop('info_frame')
         super().__init__(*args, **kwargs)
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1)
@@ -111,11 +113,13 @@ class VideoFrame(Frame):
         self.download_button.configure(state='disabled')
 
     def download(self, *args, **kwargs):
+
         path = askdirectory()  # ask the user to specify the path
         self.yt_id = self.dedicated_butt.yt_id
+        self.info.progressbar.set(0)
 
         self.textbox.configure(state='normal')
-        parallel_task(self, download_video, path, self.yt_id)
+        parallel_task(self, download_video, path, self.yt_id, 99.9)
 
 
 class ToplevelWindow(ctk.CTkToplevel):
@@ -152,6 +156,7 @@ class PlaylistWindow(Frame):
      and downloading videos from the selected playlist"""
 
     def __init__(self, *args, **kwargs):
+        self.info = kwargs.pop('info_frame')
         self.textbox = kwargs.pop('textbox')
 
         super().__init__(*args, **kwargs)
@@ -170,6 +175,7 @@ class PlaylistWindow(Frame):
         self.combobox: ctk.CTkComboBox = None
         self.videos = []
         self.yt_id = ''
+        self.title = ''
         self.ids = []  # id`s of selected videos
 
         self.toplevel_button = ctk.CTkButton(self, command=self.open_toplevel,
@@ -206,6 +212,7 @@ class PlaylistWindow(Frame):
 
     def selected(self, *args, **kwargs):
         self.playlist = kwargs['widget'].yt_id
+        self.title = kwargs['widget'].title
 
     def search(self, *args, **kwargs):
         pass
@@ -236,6 +243,7 @@ class PlaylistWindow(Frame):
         self.search()
 
     def download(self):
+        self.info.progressbar.set(0)
         path = askdirectory()  # ask the user to specify the path
         parallel_task(self, download_playlist, path)
 

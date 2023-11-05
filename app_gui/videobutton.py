@@ -13,6 +13,7 @@ class VideoButton(CTkButton):
 
         self.pressed = False
         self.yt_id = yt_id
+        self.title = text
         self.res = None
         self.Youtube = None
 

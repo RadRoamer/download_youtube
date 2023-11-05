@@ -2,10 +2,11 @@ from pytube import YouTube
 from api.utils import get_yt_link
 
 
-def download_video(inst, path: str, yt_id):
+def download_video(inst, path: str, yt_id, progress_val):
     """
     download the requested video by URL with the
     required file path and the required video quality
+    :param progress_val: a progress bar value
     :param inst: instance of a class (PlaylistWindow, VideoFrame, etc.)
     :param yt_id: id of video
     :param path: path in the root file system where the video will be stored
@@ -22,6 +23,7 @@ def download_video(inst, path: str, yt_id):
 
     stream.download(output_path=path)  # download stream
     inst.textbox.insert('end', 'video downloaded successfully!!\n')
+    inst.info.progressbar.set(progress_val)
 
 
 def download_playlist(inst, path: str):
@@ -32,15 +34,25 @@ def download_playlist(inst, path: str):
     """
 
     length = len(inst.ids)
+    progress = (100 / length) * .01
     # download all videos one by one
     inst.textbox.configure(state='normal')
+    setup = f"""
+downloading videos from next playlist: {inst.title}\n
+{'*' * 80}\n
+    """
+    inst.textbox.insert('end', setup)
     for idx, yt_id in enumerate(inst.ids, start=1):
-        download_video(inst, path, yt_id)
+        value = progress * idx
+        download_video(inst, path, yt_id, value)
         inst.textbox.insert(
             'end', f'downloaded {idx}/{length} videos...\n')
 
-    inst.textbox.insert(
-            'end', f'playlist was successful downloaded!\n')
+    punch = f"""
+playlist {inst.title} was successful downloaded!!!\n
+{'*' * 80}\n
+    """
+    inst.textbox.insert('end', punch)
 
     inst.textbox.configure(state='disabled')
 

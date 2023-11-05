@@ -11,7 +11,8 @@ ctk.set_appearance_mode('dark')
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        self.title('youtube downloader')
+        self.iconbitmap('C:\PyProjects\learning_youtube_api\icon.ico')
         self.geometry('900x550')
         self.grid_columnconfigure((0, 1), weight=1)
 
@@ -42,9 +43,6 @@ class App(ctk.CTk):
                                        command=self.search_results)
         self.search_button.grid(row=1, column=0, pady=10, padx=(30, 70))
 
-        self.refresh_button = CTkButton(self.buttons_frame,
-                                        text='refresh')
-        self.refresh_button.grid(row=1, column=1, pady=10, padx=(40, 10))
         # ------------------------>
 
         # ------------------------> Radio Buttons section
@@ -78,9 +76,11 @@ class App(ctk.CTk):
         yt_type = self.type_var.get()  # type (video, playlist, channel)
         if yt_type == 0:  # video
             self.control_frame = VideoFrame(master=self, row=1,
+                                            info_frame=self.info_frame,
                                             column=0, width=250)
         elif yt_type == 1:  # playlist
             self.control_frame = PlaylistWindow(master=self, row=1,
+                                                info_frame=self.info_frame,
                                                 textbox=self.info_frame.textbox,
                                                 fg_color='transparent',
                                                 column=0, width=250)
@@ -129,3 +129,4 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
