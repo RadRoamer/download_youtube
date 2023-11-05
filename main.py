@@ -53,10 +53,10 @@ class App(ctk.CTk):
                                  fg_color='transparent', height=100, width=500)
 
         self.radio_buttons = []
-        for idx, text in enumerate(('video', 'playlist', 'channel')):
+        for idx, text in enumerate(('video', 'playlist')):
             b = ctk.CTkRadioButton(self.radio_frame,
                                    text=text, variable=self.type_var,
-                                   value=idx, width=160)
+                                   value=idx, width=250)
             b.grid(row=0, column=idx)
             b.columnconfigure(0, weight=1)
             self.radio_buttons.append(b)

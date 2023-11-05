@@ -5,6 +5,7 @@ from api.json_utils import find_key, find_all_keys
 from customtkinter import CTkTextbox
 from app_gui.videobutton import VideoButton
 from typing import List
+import yt_dlp as ytd
 
 
 def download_video(path: str, yt_obj: YouTube = None, quality='144p',
