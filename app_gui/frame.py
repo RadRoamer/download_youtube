@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from api.download import video_res
+from api.download import get_res
 from tkinter.filedialog import askdirectory
 from api.download import download_video, download_playlist
 from customtkinter import CTkScrollableFrame
@@ -86,7 +86,7 @@ class VideoFrame(Frame):
         self.combobox.grid(row=0, column=1, rowspan=2)
 
     def get_resolutions(self):
-        parallel_task(self, video_res)
+        parallel_task(self, get_res)
 
     def selected(self, *args, **kwargs):
         self.dedicated_butt = kwargs['widget']
