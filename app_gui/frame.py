@@ -1,7 +1,6 @@
 import customtkinter as ctk
-from api.download import get_res
+from api.download import get_res, download_video, download_playlist
 from tkinter.filedialog import askdirectory
-from api.download import download_video, download_playlist
 from customtkinter import CTkScrollableFrame
 from app_gui.videobutton import VideoButton
 from api.search import YouTube, get_playlist_videos, parallel_task
@@ -35,6 +34,15 @@ class Frame(ctk.CTkFrame):
         raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
 
+class TextBox(ctk.CTkTextbox):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def insert(self, index, text, tags=None):
+        super().insert(index, text, tags=None)
+        self.see(ctk.END)
+
+
 class InfoFrame(Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -44,7 +52,7 @@ class InfoFrame(Frame):
 
         self.progress_var = ctk.IntVar(value=0)
 
-        self.textbox = ctk.CTkTextbox(master=self, width=500, height=125)
+        self.textbox = TextBox(master=self, width=500, height=125)
         self.textbox.grid(row=0, column=0)
         self.textbox.configure(state='disabled')
 
@@ -113,10 +121,10 @@ class VideoFrame(Frame):
         self.download_button.configure(state='disabled')
 
     def download(self, *args, **kwargs):
-
         path = askdirectory()  # ask the user to specify the path
         self.yt_id = self.dedicated_butt.yt_id
         self.info.progressbar.set(0)
+        self.textbox.delete(1.0, ctk.END)
 
         self.textbox.configure(state='normal')
         parallel_task(self, download_video, path, self.yt_id, 99.9)
@@ -183,12 +191,6 @@ class PlaylistWindow(Frame):
         self.toplevel_button.grid(row=0, column=0, sticky='nsew',
                                   pady=10, padx=(0, 30))
 
-    def open_toplevel(self, *args, **kwargs):
-        """open toplevel window and display all videos in playlist"""
-        self.create_toplevel()  # create and open toplevel
-        # get all videos
-        parallel_task(self, get_playlist_videos, pl_id=self.playlist)
-
     def toplevel_selected(self, widget: VideoButton):
         """
         function called every time a button in a scrollable frame is clicked.
@@ -217,7 +219,7 @@ class PlaylistWindow(Frame):
     def search(self, *args, **kwargs):
         pass
 
-    def create_toplevel(self):
+    def open_toplevel(self, *args, **kwargs):
         """create and configure toplevel window for the playlist"""
         self.ids = []
 
@@ -238,12 +240,15 @@ class PlaylistWindow(Frame):
                                             values=self.res)
             self.combobox.grid(row=2, column=1)
             # ------------------------>
+            # get all videos
+            parallel_task(self, get_playlist_videos, pl_id=self.playlist)
 
         self.toplevel.focus()  # if window exists focus it
         self.search()
 
     def download(self):
         self.info.progressbar.set(0)
+        self.textbox.delete(1.0, ctk.END)
         path = askdirectory()  # ask the user to specify the path
         parallel_task(self, download_playlist, path)
 
