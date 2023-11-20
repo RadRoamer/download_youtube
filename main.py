@@ -1,8 +1,16 @@
 import customtkinter as ctk
-from customtkinter import CTkScrollableFrame, CTkEntry, CTkButton
+from customtkinter import (
+    CTkScrollableFrame,
+    CTkEntry,
+    CTkButton,
+    CTkComboBox)
 from api.search import yt_search, parallel_task
 from app_gui.videobutton import VideoButton
-from app_gui.frame import Frame, InfoFrame, VideoFrame, PlaylistWindow
+from app_gui.frame import (
+    Frame,
+    InfoFrame,
+    VideoFrame,
+    PlaylistWindow, )
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -19,6 +27,7 @@ class App(ctk.CTk):
         # ------------------------> class variables
         self.type_var = ctk.IntVar(value=0)
         self.id_var = ctk.StringVar(value='')
+        self.result_count = ctk.StringVar(value='')
         # ------------------------>
 
         self.search_frame = Frame(self, row=0, column=0, fg_color='transparent',
@@ -44,7 +53,11 @@ class App(ctk.CTk):
         self.search_button.grid(row=1, column=0, pady=10, padx=(30, 70))
 
         # ------------------------>
-
+        self.result_values = [str(x) for x in range(5, 30, 5)]
+        self.textbox = CTkComboBox(self.buttons_frame,
+                                   variable=self.result_count,
+                                   values=self.result_values)
+        self.textbox.grid(row=1, column=1, pady=10, padx=(30, 70))
         # ------------------------> Radio Buttons section
         self.radio_frame = Frame(self.search_frame, row=2, column=0,
                                  fg_color='transparent', height=100, width=500)
@@ -94,7 +107,8 @@ class App(ctk.CTk):
             widget.destroy()
 
         # display found results on ScrollFrame
-        parallel_task(self, yt_search)
+        limit = int(self.result_count.get())
+        parallel_task(self, yt_search, max_results=limit)
 
     def is_entry_empty(self, *args):
         """
@@ -129,4 +143,3 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-
