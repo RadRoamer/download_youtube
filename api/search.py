@@ -1,9 +1,10 @@
-from api.setup import youtube
-from api.json_utils import find_key, find_all_keys
-from api.utils import strip_line
+from youtubesearchpython import PlaylistsSearch, VideosSearch, Playlist
+from api.json_utils import find_key
 from api.utils import get_yt_link
-from pytube import Playlist
-import time
+import customtkinter as ctk
+import threading as thr
+from app_gui.image_from_url import load_image
+from app_gui.videobutton import VideoButton
 
 
 class YouTube:
@@ -22,100 +23,86 @@ class YouTube:
         return f'{self.title}, {self.thumbnail}, {self.yt_id}'
 
 
-def yt_search(search_request, search_type, max_results=5):
+def parallel_task(instance, func, *args, **kwargs):
     """
-    This function searches for YouTube videos via YouTube data api and
-    returns a list of results as objects including title, thumbnail, and ID.
-    :param search_request: a string that`s represent the search query
-    :param search_type: type of required request (video, playlist or full channel)
-    :param max_results: required number of results
-    :return: list of YouTube objects
+    a function that creates a separate thread (performing a another function),
+    so that the main application (tkinter) does not stop
+    :param instance: instance of a class (App, VideoFrame, etc.)
+    :param func: function, that executed in another thread
+    :param args: optional arguments, passed to the function
+    :param kwargs: keyword arguments passed to the function
+    :return: None
+    """
+    # create the distinct thread with required parameters
+    thread = thr.Thread(target=func,
+                        args=(instance, *args),
+                        kwargs=kwargs)
+
+    thread.start()  # start the thread
+
+
+def yt_search(inst: ctk.CTk, max_results=5):
+    """
+    This function searches for YouTube videos via youtubesearchpython
+    :param inst: instance of an App class
+    :param max_results:  required number of results
     """
 
-    s_types = {
-        0: ('video', 'videoId'),
-        1: ('playlist', 'playlistId'),
-        2: ('channel', 'channelId')}
-
-    if isinstance(search_type, int):
-        search_type = s_types[search_type]
-
-    search_response = youtube.search().list(
-        q=search_request,
-        type=search_type[0],
-        part='snippet',
-        maxResults=max_results
-    ).execute()
-    if search_type[1] == 'channelId':
-        yt_ids = find_all_keys('channelId', find_all_keys('snippet', search_response))
+    inst.search_button.configure(state='disabled')
+    # self.entry.get(), self.type_var.get()
+    if inst.type_var.get() == 0:  # video search
+        response = VideosSearch(inst.entry.get(), limit=max_results).result()
+    elif inst.type_var.get() == 1:  # playlist search
+        response = PlaylistsSearch(inst.entry.get(), limit=max_results).result()
     else:
-        yt_ids = find_all_keys(search_type[1], search_response)
+        raise ValueError('invalid search type (expected value 0 or 1')
 
-    titles = find_all_keys('title', search_response)
+    youtube_list = []
+    for r in response['result']:
+        title = find_key('title', r)
+        yt_id = find_key('id', r)
+        thumb = find_key('url', find_key('thumbnails', r))
+        youtube_list.append(YouTube(title=title, thumbnail=thumb, yt_id=yt_id))
 
-    thumbnails = find_all_keys('thumbnails', search_response)
-    thumbnails = [find_key('medium', x)['url'] for x in thumbnails]
+    for v in youtube_list:
+        # trim string if it's too long
+        title = v.title if len(v.title) < 45 else v.title[:42] + '...'
 
-    youtube_list = [YouTube(title=t, thumbnail=th, yt_id=yt_id)
-                    for t, th, yt_id in zip(titles, thumbnails, yt_ids)]
+        image = load_image(v.thumbnail)  # load video thumbnail
 
-    return youtube_list
+        button = VideoButton(master=inst.scroll_frame, text=title,
+                             yt_id=v.yt_id, image=image, anchor='w')
+        button.bind('<Button-1>',
+                    lambda event, b=button: inst.select_button(b))
+        button.pack(padx=10, pady=10)
 
-
-def check_channel(ch_id):
-    next_page_token = None
-    results_count = 0
-    channel_response = youtube.channels().list(
-        part='contentDetails',
-        id=ch_id
-    ).execute()
-
-    uploads_playlist_id = find_key('uploads', channel_response)
-    playlist_items = youtube.playlistItems().list(
-        part="contentDetails",
-        playlistId=uploads_playlist_id,
-        maxResults=50,
-        pageToken=next_page_token
-    ).execute()
-
-    results_count = find_key('totalResults', playlist_items)
-    print(results_count)
+        inst.search_button.configure(state='normal')
 
 
-def get_playlist(pl_id: str):
-    pl_link = get_yt_link(pl_id, 'playlist')
-    start = time.time()
+def get_playlist_videos(inst, pl_id: str):
+    """
+    get all videos in required playlist and placed them into toplevel window
+    :param inst: instance of a PlaylistFrame class
+    :param pl_id: id of the required playlist
+    """
+    youtube_list = []
 
-    playlist: Playlist = Playlist(pl_link)
-    arr = [YouTube(title=x.title, thumbnail=x.thumbnail_url, yt_id=x.video_id)
-           for x in playlist.videos]
-    for video in playlist.videos:
-        print(video)
-    print(f'{time.time() - start:.4f}')
+    link = get_yt_link(pl_id, 'playlist')  # get full link
+    playlist = Playlist(playlistLink=link)
 
-    return arr, playlist
+    # list throw all videos in playlist
+    for v in playlist.videos:
+        title = find_key('title', v)
+        pl_id = find_key('id', v)
+        thumb = find_key('url', find_key('thumbnails', v))
+        youtube_list.append(YouTube(title=title, thumbnail=thumb, yt_id=pl_id))
 
-
-def get_playlist_videos(pl_id: str):
-    pl_response = youtube.playlistItems().list(
-        part='snippet',
-        playlistId=pl_id,
-        maxResults=50
-    ).execute()
-
-    yt_ids = find_all_keys('videoId', pl_response)
-    titles = find_all_keys('title', pl_response)
-
-    thumbnails = find_all_keys('thumbnails', pl_response)
-    thumbnails = [find_key('medium', x)['url'] for x in thumbnails]
-
-    youtube_list = [YouTube(title=t, thumbnail=th, yt_id=yt_id)
-                    for t, th, yt_id in zip(titles, thumbnails, yt_ids)]
-
-    return youtube_list
+    inst.videos = youtube_list
+    # display videos as VideoButton class in scrollable frame
+    inst.toplevel.scroll_frame.display_results(
+            inst.videos, inst.toplevel_selected)
+    inst.combobox_var.set(value=inst.res[0])
 
 
 if __name__ == '__main__':
-    # get_playlist('PL6plRXMq5RAAb9gwGqmgAoA-KIr-7CMuz')
-    get_playlist('PL6plRXMq5RAAb9gwGqmgAoA-KIr-7CMuz')
-
+    pass

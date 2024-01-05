@@ -1,9 +1,16 @@
 import customtkinter as ctk
-from customtkinter import CTkScrollableFrame, CTkEntry, CTkButton
-from api.search import yt_search
+from customtkinter import (
+    CTkScrollableFrame,
+    CTkEntry,
+    CTkButton,
+    CTkComboBox)
+from api.search import yt_search, parallel_task
 from app_gui.videobutton import VideoButton
-from app_gui.image_from_url import load_image
-from app_gui.frame import Frame, InfoFrame, VideoControlFrame, PlaylistWindow
+from app_gui.frame import (
+    Frame,
+    InfoFrame,
+    VideoFrame,
+    PlaylistWindow, )
 
 ctk.set_default_color_theme("dark-blue")
 ctk.set_appearance_mode('dark')
@@ -12,13 +19,15 @@ ctk.set_appearance_mode('dark')
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        self.title('youtube downloader')
+        self.iconbitmap('C:\PyProjects\learning_youtube_api\icon.ico')
         self.geometry('900x550')
         self.grid_columnconfigure((0, 1), weight=1)
 
         # ------------------------> class variables
         self.type_var = ctk.IntVar(value=0)
         self.id_var = ctk.StringVar(value='')
+        self.result_count = ctk.StringVar(value='')
         # ------------------------>
 
         self.search_frame = Frame(self, row=0, column=0, fg_color='transparent',
@@ -43,20 +52,21 @@ class App(ctk.CTk):
                                        command=self.search_results)
         self.search_button.grid(row=1, column=0, pady=10, padx=(30, 70))
 
-        self.refresh_button = CTkButton(self.buttons_frame,
-                                        text='refresh')
-        self.refresh_button.grid(row=1, column=1, pady=10, padx=(40, 10))
         # ------------------------>
-
+        self.result_values = [str(x) for x in range(5, 30, 5)]
+        self.textbox = CTkComboBox(self.buttons_frame,
+                                   variable=self.result_count,
+                                   values=self.result_values)
+        self.textbox.grid(row=1, column=1, pady=10, padx=(30, 70))
         # ------------------------> Radio Buttons section
         self.radio_frame = Frame(self.search_frame, row=2, column=0,
                                  fg_color='transparent', height=100, width=500)
 
         self.radio_buttons = []
-        for idx, text in enumerate(('video', 'playlist', 'channel')):
+        for idx, text in enumerate(('video', 'playlist')):
             b = ctk.CTkRadioButton(self.radio_frame,
                                    text=text, variable=self.type_var,
-                                   value=idx, width=160)
+                                   value=idx, width=250)
             b.grid(row=0, column=idx)
             b.columnconfigure(0, weight=1)
             self.radio_buttons.append(b)
@@ -78,10 +88,13 @@ class App(ctk.CTk):
 
         yt_type = self.type_var.get()  # type (video, playlist, channel)
         if yt_type == 0:  # video
-            self.control_frame = VideoControlFrame(master=self, row=1,
-                                                   column=0, width=250)
+            self.control_frame = VideoFrame(master=self, row=1,
+                                            info_frame=self.info_frame,
+                                            column=0, width=250)
         elif yt_type == 1:  # playlist
             self.control_frame = PlaylistWindow(master=self, row=1,
+                                                info_frame=self.info_frame,
+                                                textbox=self.info_frame.textbox,
                                                 fg_color='transparent',
                                                 column=0, width=250)
         self.control_frame.textbox = self.info_frame.textbox
@@ -93,20 +106,9 @@ class App(ctk.CTk):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
-        # get video thumbnail, title and video id
-        videos = yt_search(self.entry.get(), self.type_var.get())
-
-        for v in videos:
-            # trim string if it's too long
-            title = v.title if len(v.title) < 45 else v.title[:42] + '...'
-
-            image = load_image(v.thumbnail)  # load video thumbnail
-
-            button = VideoButton(master=self.scroll_frame, text=title,
-                                 yt_id=v.yt_id, image=image, anchor='w')
-            button.bind('<Button-1>',
-                        lambda event, b=button: self.select_button(b))
-            button.pack(padx=10, pady=10)
+        # display found results on ScrollFrame
+        limit = int(self.result_count.get())
+        parallel_task(self, yt_search, max_results=limit)
 
     def is_entry_empty(self, *args):
         """

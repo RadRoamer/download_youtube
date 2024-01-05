@@ -1,10 +1,9 @@
 import customtkinter as ctk
-from api.download import video_res
+from api.download import get_res, download_video, download_playlist
 from tkinter.filedialog import askdirectory
-from api.download import download_video, download_playlist
 from customtkinter import CTkScrollableFrame
 from app_gui.videobutton import VideoButton
-from api.search import YouTube, get_playlist_videos
+from api.search import YouTube, get_playlist_videos, parallel_task
 from app_gui.image_from_url import load_image
 from typing import List
 
@@ -35,6 +34,15 @@ class Frame(ctk.CTkFrame):
         raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
 
+class TextBox(ctk.CTkTextbox):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def insert(self, index, text, tags=None):
+        super().insert(index, text, tags=None)
+        self.see(ctk.END)
+
+
 class InfoFrame(Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -42,25 +50,28 @@ class InfoFrame(Frame):
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1, minsize=300)
 
-        self.textbox = ctk.CTkTextbox(master=self, width=500, height=125)
+        self.progress_var = ctk.IntVar(value=0)
+
+        self.textbox = TextBox(master=self, width=500, height=125)
         self.textbox.grid(row=0, column=0)
         self.textbox.configure(state='disabled')
 
-        self.progressbar = ctk.CTkProgressBar(self, orientation="horizontal")
+        self.progressbar = ctk.CTkProgressBar(self,
+                                              variable=self.progress_var,
+                                              orientation="horizontal")
         self.progressbar.grid(row=1, pady=(10, 10))
 
-    def clear_textbox(self):
-        self.textbox.delete('1.0', 'end')
 
-
-class VideoControlFrame(Frame):
+class VideoFrame(Frame):
     def __init__(self, *args, **kwargs):
+        self.info = kwargs.pop('info_frame')
         super().__init__(*args, **kwargs)
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1)
 
         self.dedicated_butt: VideoButton = None
         self.textbox: ctk.CTkTextbox = None
+        self.yt_id = ''
 
         # variables
         self.quality_var = ctk.IntVar(value=0)
@@ -83,14 +94,7 @@ class VideoControlFrame(Frame):
         self.combobox.grid(row=0, column=1, rowspan=2)
 
     def get_resolutions(self):
-        button = self.dedicated_butt
-
-        button.res = video_res(button.yt_id, button)
-
-        self.combobox.configure(values=button.res, state='normal')
-        self.combobox_var.set(button.res[0])
-
-        self.download_button.configure(state='normal')
+        parallel_task(self, get_res)
 
     def selected(self, *args, **kwargs):
         self.dedicated_butt = kwargs['widget']
@@ -118,17 +122,17 @@ class VideoControlFrame(Frame):
 
     def download(self, *args, **kwargs):
         path = askdirectory()  # ask the user to specify the path
+        self.yt_id = self.dedicated_butt.yt_id
+        self.info.progressbar.set(0)
+        self.textbox.delete(1.0, ctk.END)
 
         self.textbox.configure(state='normal')
-        download_video(path=path,
-                       yt_obj=self.dedicated_butt.Youtube,
-                       textbox=self.textbox,
-                       quality=self.combobox_var.get())
-        self.textbox.configure(state='disabled')
+        parallel_task(self, download_video, path, self.yt_id, 99.9)
 
 
 class ToplevelWindow(ctk.CTkToplevel):
     """top level window for additional functionality"""
+
     def __init__(self, *args, **kwargs):
         # function called by the checkbox every time a variable is changed
         check_func = kwargs.pop('check_func')
@@ -160,7 +164,11 @@ class PlaylistWindow(Frame):
      and downloading videos from the selected playlist"""
 
     def __init__(self, *args, **kwargs):
+        self.info = kwargs.pop('info_frame')
+        self.textbox = kwargs.pop('textbox')
+
         super().__init__(*args, **kwargs)
+
         self.grid(sticky='e')
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1)
@@ -170,24 +178,18 @@ class PlaylistWindow(Frame):
         self.res = ['720p', '480p', '360p', '240p', '144p']
         self.playlist = ''
 
-        self.textbox: ctk.CTkTextbox = None
         self.toplevel: ToplevelWindow = None
         self.download_button: ctk.CTkButton = None
         self.combobox: ctk.CTkComboBox = None
+        self.videos = []
+        self.yt_id = ''
+        self.title = ''
         self.ids = []  # id`s of selected videos
 
         self.toplevel_button = ctk.CTkButton(self, command=self.open_toplevel,
                                              text='open playlist', state='normal')
         self.toplevel_button.grid(row=0, column=0, sticky='nsew',
                                   pady=10, padx=(0, 30))
-
-    def open_toplevel(self, *args, **kwargs):
-        """open toplevel window and display all videos in playlist"""
-        self.create_toplevel()  # create and open toplevel
-        videos = get_playlist_videos(self.playlist)  # get all videos
-        # display videos as VideoButton class in scrollable frame
-        self.toplevel.scroll_frame.display_results(videos, self.toplevel_selected)
-        self.combobox_var.set(value=self.res[0])
 
     def toplevel_selected(self, widget: VideoButton):
         """
@@ -212,11 +214,12 @@ class PlaylistWindow(Frame):
 
     def selected(self, *args, **kwargs):
         self.playlist = kwargs['widget'].yt_id
+        self.title = kwargs['widget'].title
 
     def search(self, *args, **kwargs):
         pass
 
-    def create_toplevel(self):
+    def open_toplevel(self, *args, **kwargs):
         """create and configure toplevel window for the playlist"""
         self.ids = []
 
@@ -237,15 +240,17 @@ class PlaylistWindow(Frame):
                                             values=self.res)
             self.combobox.grid(row=2, column=1)
             # ------------------------>
+            # get all videos
+            parallel_task(self, get_playlist_videos, pl_id=self.playlist)
 
         self.toplevel.focus()  # if window exists focus it
         self.search()
 
     def download(self):
+        self.info.progressbar.set(0)
+        self.textbox.delete(1.0, ctk.END)
         path = askdirectory()  # ask the user to specify the path
-        download_playlist(yt_ids=self.ids,
-                          path=path,
-                          quality=self.combobox_var.get())
+        parallel_task(self, download_playlist, path)
 
     def checkbox_func(self):
         """a function for the checkbox to select, or vice versa,
@@ -254,7 +259,7 @@ class PlaylistWindow(Frame):
         buttons = self.toplevel.scroll_frame.winfo_children()
         # check if checkbox is switches to 'off'
         if self.toplevel.check_var.get() == 'off':
-            self.ids = [] # delete all ids
+            self.ids = []  # delete all ids
             self.download_button.configure(state='disabled')
             # unselect all buttons in scroll frame
             for button in buttons:
@@ -269,6 +274,7 @@ class PlaylistWindow(Frame):
 
 class ScrollFrame(CTkScrollableFrame):
     """Basic CTkScrollableFrame with soma addition convenient functionality"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
