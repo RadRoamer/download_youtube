@@ -1,9 +1,10 @@
 import customtkinter as ctk
 from api.download import get_res, download_video, download_playlist
+from api import YouTube
 from tkinter.filedialog import askdirectory
 from customtkinter import CTkScrollableFrame
 from app_gui.videobutton import VideoButton
-from api.search import YouTube, get_playlist_videos, parallel_task
+from api.search import get_playlist_videos, multithread_task
 from app_gui.image_from_url import load_image
 from typing import List
 
@@ -94,7 +95,7 @@ class VideoFrame(Frame):
         self.combobox.grid(row=0, column=1, rowspan=2)
 
     def get_resolutions(self):
-        parallel_task(self, get_res)
+        multithread_task(self, get_res)
 
     def selected(self, *args, **kwargs):
         self.dedicated_butt = kwargs['widget']
@@ -127,7 +128,7 @@ class VideoFrame(Frame):
         self.textbox.delete(1.0, ctk.END)
 
         self.textbox.configure(state='normal')
-        parallel_task(self, download_video, path, self.yt_id, 99.9)
+        multithread_task(self, download_video, path, self.yt_id, 99.9)
 
 
 class ToplevelWindow(ctk.CTkToplevel):
@@ -241,16 +242,24 @@ class PlaylistWindow(Frame):
             self.combobox.grid(row=2, column=1)
             # ------------------------>
             # get all videos
-            parallel_task(self, get_playlist_videos, pl_id=self.playlist)
+            multithread_task(self.search_videos, pl_id=self.playlist)
 
         self.toplevel.focus()  # if window exists focus it
         self.search()
+
+    def search_videos(self, pl_id):
+        youtube_list = get_playlist_videos(pl_id)
+
+        self.videos = youtube_list
+        # display videos as VideoButton class in scrollable frame
+        self.toplevel.scroll_frame.display_results(self.videos, self.toplevel_selected)
+        self.combobox_var.set(value=self.res[0])
 
     def download(self):
         self.info.progressbar.set(0)
         self.textbox.delete(1.0, ctk.END)
         path = askdirectory()  # ask the user to specify the path
-        parallel_task(self, download_playlist, path)
+        multithread_task(self, download_playlist, path)
 
     def checkbox_func(self):
         """a function for the checkbox to select, or vice versa,

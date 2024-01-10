@@ -1,10 +1,12 @@
 import customtkinter as ctk
+import tkinter
 from customtkinter import (
     CTkScrollableFrame,
     CTkEntry,
     CTkButton,
     CTkComboBox)
-from api.search import yt_search, parallel_task
+from api.search import yt_search, multithread_task
+from app_gui import load_image
 from app_gui.videobutton import VideoButton
 from app_gui.frame import (
     Frame,
@@ -20,8 +22,13 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title('youtube downloader')
-        self.iconbitmap('C:\PyProjects\learning_youtube_api\icon.ico')
-        self.geometry('900x550')
+        # if tkinter doesn`t find icon, use another path
+        try:
+            self.iconbitmap('../icon.ico')
+        except tkinter.TclError:
+            self.iconbitmap('icon.ico')
+
+        self.geometry('900x600')
         self.grid_columnconfigure((0, 1), weight=1)
 
         # ------------------------> class variables
@@ -49,7 +56,7 @@ class App(ctk.CTk):
         self.search_button = CTkButton(self.buttons_frame,
                                        text='search',
                                        state='disabled',
-                                       command=self.search_results)
+                                       command=self.search_setup)
         self.search_button.grid(row=1, column=0, pady=10, padx=(30, 70))
 
         # ------------------------>
@@ -78,7 +85,7 @@ class App(ctk.CTk):
         # binding
         self.entry.bind("<KeyRelease>", self.is_entry_empty)
 
-    def search_results(self):
+    def search_setup(self):
         """
         Display found videos on Scrollable Frame via CTkButton
         """
@@ -107,8 +114,27 @@ class App(ctk.CTk):
             widget.destroy()
 
         # display found results on ScrollFrame
-        limit = int(self.result_count.get())
-        parallel_task(self, yt_search, max_results=limit)
+        max_results = int(self.result_count.get())
+        multithread_task(self.search, max_results=max_results)
+
+    def search(self, max_results):
+        self.search_button.configure(state='disabled')
+
+        youtube_list = yt_search(self.type_var.get(), self.entry.get(), max_results)
+
+        for v in youtube_list:
+            # trim string if it's too long
+            title = v.title if len(v.title) < 45 else v.title[:42] + '...'
+
+            image = load_image(v.thumbnail)  # load video thumbnail
+
+            button = VideoButton(master=self.scroll_frame, text=title,
+                                 yt_id=v.yt_id, image=image, anchor='w')
+            button.bind('<Button-1>',
+                        lambda event, b=button: self.select_button(b))
+            button.pack(padx=10, pady=10)
+
+        self.search_button.configure(state='normal')
 
     def is_entry_empty(self, *args):
         """

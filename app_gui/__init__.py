@@ -1,0 +1,1 @@
+from .image_from_url import load_image
