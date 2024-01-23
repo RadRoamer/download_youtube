@@ -1,13 +1,11 @@
+import yt_dlp as ytd
 from youtubesearchpython import (
     PlaylistsSearch,
     VideosSearch,
     Playlist)
-from api.json_utils import find_key
+from api.json_utils import find_all_keys
 from api.utils import get_yt_link
-import customtkinter as ctk
 import threading as thr
-from app_gui.image_from_url import load_image
-from app_gui.videobutton import VideoButton
 from api.utils import yt_get_attrs
 
 
@@ -29,9 +27,9 @@ def multithread_task(func, *args, **kwargs):
 
 
 def yt_search(yt_type, query, max_results=5):
-    srch_dict = {0: VideosSearch, 1: PlaylistsSearch}
+    search_dict = {0: VideosSearch, 1: PlaylistsSearch}
 
-    response = srch_dict[yt_type](query, limit=max_results).result()
+    response = search_dict[yt_type](query, limit=max_results).result()
 
     return yt_get_attrs(response['result'][:max_results])
 
@@ -49,6 +47,23 @@ def get_playlist_videos(pl_id: str):
     return yt_get_attrs(playlist.videos)
 
 
+def get_res(yt_id):
+    # create a full  url link (which starts with 'https://')
+    link = get_yt_link(yt_id)
+
+    with ytd.YoutubeDL({'format': 'best'}) as extr:
+        # extract info from webpage
+        info = extr.extract_info(link, download=False)
+        # find all available resolutions for the video
+        res = find_all_keys('height', info)
+        # get only well-known resolutions (144, 360, 720p, etc.)
+        res = {x for x in res if x and x % 12 == 0}
+        # sort set and convert values to string because combobox works only with str
+        res = [str(x) for x in sorted(res, reverse=True)]
+
+    return res
+
+
 if __name__ == '__main__':
-    for i in yt_search(0, 'python'):
+    for i in yt_search(0, 'youtube rewind 2016'):
         print(i)

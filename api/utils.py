@@ -1,20 +1,17 @@
 import api.json_utils as ju
+from dataclasses import dataclass
 
 
+@dataclass
 class YouTube:
     """
     simple data container of YouTube objects, that contains title,
     thumbnail_url, and unique id, that can represent
     video, playlist or channel
     """
-
-    def __init__(self, *args, **kwargs):
-        self.title = kwargs.get('title')
-        self.thumbnail = kwargs.get('thumbnail')
-        self.yt_id = kwargs.get('yt_id')
-
-    def __str__(self):
-        return f'{self.title}, {self.thumbnail}, {self.yt_id}'
+    title: str
+    thumbnail: str
+    yt_id: str
 
 
 def get_yt_link(yt_id: str, yt_type='video'):

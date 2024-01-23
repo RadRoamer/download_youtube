@@ -1,10 +1,11 @@
 import customtkinter as ctk
-from api.download import get_res, download_video, download_playlist
+from api.download import download_video, download_playlist
 from api import YouTube
 from tkinter.filedialog import askdirectory
 from customtkinter import CTkScrollableFrame
 from app_gui.videobutton import VideoButton
 from api.search import get_playlist_videos, multithread_task
+import api
 from app_gui.image_from_url import load_image
 from typing import List
 
@@ -24,12 +25,12 @@ class Frame(ctk.CTkFrame):
         should be overwritten in inherited classes"""
         raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
-    def search(self, *args, **kwargs):
+    def setup(self, *args, **kwargs):
         """function which called when user send the search request.
         should be overwritten in inherited classes"""
         raise AttributeError(f'its an abstract method for {type(self).__name__} ')
 
-    def download(self, *args, **kwargs):
+    def download_setup(self, *args, **kwargs):
         """function which when user wants to download something form youtube.
         should be overwritten in inherited classes"""
         raise AttributeError(f'its an abstract method for {type(self).__name__} ')
@@ -65,13 +66,14 @@ class InfoFrame(Frame):
 
 class VideoFrame(Frame):
     def __init__(self, *args, **kwargs):
-        self.info = kwargs.pop('info_frame')
+        self.info = kwargs.pop('info_frame', None)
+        self.textbox: ctk.CTkTextbox = kwargs.pop('textbox', None)
+
         super().__init__(*args, **kwargs)
         self.grid_rowconfigure(0, weight=1)  # configure grid system
         self.grid_columnconfigure(0, weight=1)
 
         self.dedicated_butt: VideoButton = None
-        self.textbox: ctk.CTkTextbox = None
         self.yt_id = ''
 
         # variables
@@ -85,7 +87,7 @@ class VideoFrame(Frame):
                                         text='available resolutions')
         self.res_button.grid(row=0, column=0, padx=(0, 30), pady=10)
 
-        self.download_button = ctk.CTkButton(self, command=self.download,
+        self.download_button = ctk.CTkButton(self, command=self.download_setup,
                                              text='download', state='disabled')
         self.download_button.grid(row=1, column=0, pady=10, padx=(0, 30))
         # ------------------------>
@@ -95,7 +97,7 @@ class VideoFrame(Frame):
         self.combobox.grid(row=0, column=1, rowspan=2)
 
     def get_resolutions(self):
-        multithread_task(self, get_res)
+        multithread_task(self.search)
 
     def selected(self, *args, **kwargs):
         self.dedicated_butt = kwargs['widget']
@@ -106,8 +108,15 @@ class VideoFrame(Frame):
         self.res_button.configure(state='normal')
         self.combobox.configure(state='normal')
 
-    def search(self, *args, **kwargs):
+    def setup(self, *args, **kwargs):
         self.res_button.configure(state='disabled')
+
+    def search(self):
+        res_list = api.search.get_res(self.dedicated_butt.yt_id)
+        self.combobox.configure(values=res_list, state='normal')
+        self.combobox_var.set(res_list[0])
+
+        self.download_button.configure(state='normal')
 
     def combo_on(self):
         self.combobox.configure(values=self.dedicated_butt.res)
@@ -121,14 +130,16 @@ class VideoFrame(Frame):
 
         self.download_button.configure(state='disabled')
 
-    def download(self, *args, **kwargs):
+    def download_setup(self, *args, **kwargs):
         path = askdirectory()  # ask the user to specify the path
+        if not path:
+            return None
         self.yt_id = self.dedicated_butt.yt_id
         self.info.progressbar.set(0)
         self.textbox.delete(1.0, ctk.END)
 
         self.textbox.configure(state='normal')
-        multithread_task(self, download_video, path, self.yt_id, 99.9)
+        multithread_task(download_video, path, self.yt_id, 99.9, self)
 
 
 class ToplevelWindow(ctk.CTkToplevel):
@@ -165,8 +176,8 @@ class PlaylistWindow(Frame):
      and downloading videos from the selected playlist"""
 
     def __init__(self, *args, **kwargs):
-        self.info = kwargs.pop('info_frame')
-        self.textbox = kwargs.pop('textbox')
+        self.info = kwargs.pop('info_frame', None)
+        self.textbox = kwargs.pop('textbox', None)
 
         super().__init__(*args, **kwargs)
 
@@ -217,7 +228,7 @@ class PlaylistWindow(Frame):
         self.playlist = kwargs['widget'].yt_id
         self.title = kwargs['widget'].title
 
-    def search(self, *args, **kwargs):
+    def setup(self, *args, **kwargs):
         pass
 
     def open_toplevel(self, *args, **kwargs):
@@ -232,7 +243,7 @@ class PlaylistWindow(Frame):
 
             # ------------------------> Toplevel control section
             self.download_button = ctk.CTkButton(self.toplevel,
-                                                 command=self.download,
+                                                 command=self.download_setup,
                                                  text='download selected',
                                                  state='disabled')
             self.download_button.grid(row=2, column=0, pady=10, padx=(0, 30))
@@ -242,28 +253,29 @@ class PlaylistWindow(Frame):
             self.combobox.grid(row=2, column=1)
             # ------------------------>
             # get all videos
-            multithread_task(self.search_videos, pl_id=self.playlist)
+            api.search.multithread_task(self.search_videos, pl_id=self.playlist)
 
         self.toplevel.focus()  # if window exists focus it
-        self.search()
+        self.setup()
 
     def search_videos(self, pl_id):
-        youtube_list = get_playlist_videos(pl_id)
+        self.videos = get_playlist_videos(pl_id)
 
-        self.videos = youtube_list
         # display videos as VideoButton class in scrollable frame
         self.toplevel.scroll_frame.display_results(self.videos, self.toplevel_selected)
         self.combobox_var.set(value=self.res[0])
 
-    def download(self):
+    def download_setup(self):
         self.info.progressbar.set(0)
         self.textbox.delete(1.0, ctk.END)
         path = askdirectory()  # ask the user to specify the path
-        multithread_task(self, download_playlist, path)
+        if not path:
+            return None
+        multithread_task(download_playlist, path, self)
 
     def checkbox_func(self):
-        """a function for the checkbox to select, or vice versa,
-         discard all videos in the playlist"""
+        """a function for the checkbox to select, or vice versa
+         for discarding all videos in the playlist"""
         # get all videos in scroll frame
         buttons = self.toplevel.scroll_frame.winfo_children()
         # check if checkbox is switches to 'off'

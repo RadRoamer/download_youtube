@@ -22,6 +22,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title('youtube downloader')
+
         # if tkinter doesn`t find icon, use another path
         try:
             self.iconbitmap('../icon.ico')
@@ -94,20 +95,17 @@ class App(ctk.CTk):
         self.control_frame.destroy()
 
         yt_type = self.type_var.get()  # type (video, playlist, channel)
+
+        attrs = {'master': self, 'row': 1, 'info_frame': self.info_frame,
+                 'column': 0, 'width': 250, 'textbox': self.info_frame.textbox}
+
         if yt_type == 0:  # video
-            self.control_frame = VideoFrame(master=self, row=1,
-                                            info_frame=self.info_frame,
-                                            column=0, width=250)
+            self.control_frame = VideoFrame(**attrs)
         elif yt_type == 1:  # playlist
-            self.control_frame = PlaylistWindow(master=self, row=1,
-                                                info_frame=self.info_frame,
-                                                textbox=self.info_frame.textbox,
-                                                fg_color='transparent',
-                                                column=0, width=250)
-        self.control_frame.textbox = self.info_frame.textbox
+            self.control_frame = PlaylistWindow(**attrs, fg_color='transparent')
 
         # function  that is responsible for the frame's actions during search
-        self.control_frame.search()
+        self.control_frame.setup()
 
         # clear the scrollable frame
         for widget in self.scroll_frame.winfo_children():
@@ -115,6 +113,7 @@ class App(ctk.CTk):
 
         # display found results on ScrollFrame
         max_results = int(self.result_count.get())
+
         multithread_task(self.search, max_results=max_results)
 
     def search(self, max_results):
